@@ -370,6 +370,41 @@
       box-shadow: 0 0 12px var(--accent-glow);
     }
 
+    #lua-editor {
+      width: 100%;
+      height: 200px;
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #e6edf3;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      line-height: 1.6;
+    }
+    #lua-editor:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79, 140, 255, 0.15);
+    }
+    #lua-editor::placeholder {
+      color: #484f58;
+    }
+    #lua-console {
+      color: #7ee787;
+    }
+    #lua-console .log-error {
+      color: #ff7b72;
+    }
+    #lua-console .log-info {
+      color: #58a6ff;
+    }
+    #lua-console .log-warn {
+      color: #d29922;
+    }
+
     .fov-preview, .radar-preview {
       display: flex;
       justify-content: center;
@@ -880,6 +915,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span>Configs</span>
       </div>
+      <div class="nav-item" data-panel="lua">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        <span>Lua Executor</span>
+      </div>
     </div>
 
     <div class="main">
@@ -1224,6 +1263,59 @@
           <div class="card">
             <div class="card-title">Live Summary</div>
             <pre id="config-summary"></pre>
+          </div>
+        </div>
+
+        <!-- LUA EXECUTOR -->
+        <div class="panel" id="panel-lua">
+          <div class="section-title">Lua Executor</div>
+          
+          <div class="card">
+            <div class="card-title">Script Editor</div>
+            <div style="margin-bottom:12px">
+              <textarea id="lua-editor" placeholder="-- Enter your Lua script here&#10;print(&quot;Hello from Susano Lite!&quot;)&#10;&#10;-- Example: Get local player&#10;local player = LocalPlayer&#10;if player then&#10;  print(&quot;Player found: &quot; .. player.Name)&#10;end" spellcheck="false"></textarea>
+            </div>
+            <div class="btn-row">
+              <button class="btn" onclick="executeLua()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Execute
+              </button>
+              <button class="btn btn-secondary" onclick="clearLua()">Clear</button>
+              <button class="btn btn-secondary" onclick="loadExampleLua()">Load Example</button>
+              <button class="btn btn-secondary" onclick="document.getElementById('lua-file').click()">Load File</button>
+              <input type="file" id="lua-file" accept=".lua,.txt" style="display:none" onchange="loadLuaFile(event)">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Script Library</div>
+            <div class="profile-btns" style="flex-wrap:wrap">
+              <div class="profile-btn" onclick="loadScript('esp')">ESP Script</div>
+              <div class="profile-btn" onclick="loadScript('aimbot')">Aimbot Script</div>
+              <div class="profile-btn" onclick="loadScript('teleport')">Teleport Script</div>
+              <div class="profile-btn" onclick="loadScript('vehicle')">Vehicle Spawner</div>
+              <div class="profile-btn" onclick="loadScript('troll')">Troll Script</div>
+              <div class="profile-btn" onclick="loadScript('farm')">Auto Farm</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Console Output</div>
+            <div id="lua-console" class="log" style="max-height:180px;background:#0d1117;border-radius:8px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;overflow-y:auto"></div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn btn-secondary" onclick="clearConsole()">Clear Console</button>
+              <button class="btn btn-secondary" onclick="copyConsole()">Copy Output</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Quick Functions</div>
+            <div class="btn-row">
+              <button class="btn btn-secondary" onclick="quickLua('print(&quot;Susano Lite v1.1&quot;)')">Print Version</button>
+              <button class="btn btn-secondary" onclick="quickLua('print(&quot;Players: &quot; .. #GetPlayers())')">List Players</button>
+              <button class="btn btn-secondary" onclick="quickLua('print(&quot;Local Player: &quot; .. LocalPlayer.Name)')">Get Local</button>
+              <button class="btn btn-secondary" onclick="quickLua('fireclick()')">Fire Click</button>
+            </div>
           </div>
         </div>
 
@@ -1864,6 +1956,269 @@ Veh God        ${get('veh_god')}`;
         playClick();
       });
     });
+
+    // Lua Executor Functions
+    function logToConsole(msg, type = 'info') {
+      const consoleEl = document.getElementById('lua-console');
+      if (!consoleEl) return;
+      const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      const line = document.createElement('div');
+      line.className = `log-${type}`;
+      line.textContent = `[${time}] ${msg}`;
+      consoleEl.appendChild(line);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+
+    function executeLua() {
+      const editor = document.getElementById('lua-editor');
+      if (!editor) return;
+      const code = editor.value.trim();
+      if (!code) {
+        logToConsole('Error: No script to execute', 'error');
+        return;
+      }
+      logToConsole('Executing script...', 'info');
+      try {
+        // Simulated Lua execution (browser cannot actually run Lua)
+        // In a real injector, this would send code to the game
+        logToConsole('> Script started', 'info');
+        
+        // Simple simulation of common Lua commands
+        const lines = code.split('\n');
+        lines.forEach(line => {
+          line = line.trim();
+          if (line.startsWith('--') || !line) return;
+          
+          if (line.includes('print(')) {
+            const match = line.match(/print\((.*)\)/);
+            if (match) {
+              let text = match[1].replace(/["']/g, '');
+              // Handle string concatenation simulation
+              if (text.includes('..')) {
+                text = text.split('..').map(s => s.trim().replace(/["']/g, '')).join(' ');
+              }
+              logToConsole(text, 'info');
+            }
+          }
+          else if (line.includes('LocalPlayer')) {
+            logToConsole('LocalPlayer accessed', 'info');
+          }
+          else if (line.includes('GetPlayers()')) {
+            logToConsole(`Found ${players.length} players`, 'info');
+          }
+          else if (line.includes('fireclick()') || line.includes('fireclick')) {
+            logToConsole('Mouse click simulated', 'info');
+          }
+          else if (line.includes('ESP') || line.includes('esp')) {
+            logToConsole('ESP functions loaded', 'info');
+          }
+          else if (line.includes('aimbot') || line.includes('Aimbot')) {
+            logToConsole('Aimbot initialized', 'info');
+          }
+        });
+        
+        logToConsole('> Script completed successfully', 'info');
+        toast('Script executed');
+        addLog('Lua script executed');
+      } catch (e) {
+        logToConsole(`Error: ${e.message}`, 'error');
+      }
+      playClick();
+    }
+
+    function clearLua() {
+      const editor = document.getElementById('lua-editor');
+      if (editor) editor.value = '';
+      playClick();
+    }
+
+    function clearConsole() {
+      const consoleEl = document.getElementById('lua-console');
+      if (consoleEl) consoleEl.innerHTML = '';
+      playClick();
+    }
+
+    function copyConsole() {
+      const consoleEl = document.getElementById('lua-console');
+      if (consoleEl) {
+        navigator.clipboard.writeText(consoleEl.textContent).then(() => {
+          toast('Console copied to clipboard');
+        });
+      }
+      playClick();
+    }
+
+    function loadExampleLua() {
+      const editor = document.getElementById('lua-editor');
+      if (!editor) return;
+      editor.value = `-- Susano Lite Example Script
+print("Susano Lite v1.1")
+print("----------------")
+
+-- Get local player info
+local player = LocalPlayer
+if player then
+  print("Player: " .. player.Name)
+  print("Team: " .. player.Team)
+end
+
+-- List all players
+local players = GetPlayers()
+print("Total players: " .. #players)
+
+-- Enable ESP
+print("ESP Enabled")
+`;
+      playClick();
+    }
+
+    function loadLuaFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const editor = document.getElementById('lua-editor');
+        if (editor) {
+          editor.value = e.target.result;
+          logToConsole(`Loaded file: ${file.name}`, 'info');
+          toast(`Loaded: ${file.name}`);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+      playClick();
+    }
+
+    function loadScript(type) {
+      const editor = document.getElementById('lua-editor');
+      if (!editor) return;
+      
+      const scripts = {
+        esp: `-- ESP Script
+print("Loading ESP...")
+
+-- Player ESP Settings
+ESP_Box = true
+ESP_Skeleton = true
+ESP_Name = true
+ESP_Distance = true
+ESP_HealthBar = true
+
+-- Colors
+ESP_BoxColor = Color3.fromRGB(59, 130, 246)
+ESP_SkelColor = Color3.fromRGB(34, 197, 94)
+
+print("ESP loaded successfully!")
+`,
+        aimbot: `-- Aimbot Script
+print("Loading Aimbot...")
+
+-- Aimbot Settings
+Aimbot_FOV = 45
+Aimbot_Smooth = 8
+Aimbot_HitChance = 70
+Aimbot_Bone = "Head"
+
+-- Options
+Aimbot_VisibilityCheck = true
+Aimbot_TeamCheck = true
+
+print("Aimbot configured!")
+`,
+        teleport: `-- Teleport Script
+print("Teleport Script")
+
+-- Teleport to waypoint
+function TeleportToWaypoint()
+  local wp = Waypoint
+  if wp then
+    LocalPlayer:SetPosition(wp.Position)
+    print("Teleported to waypoint!")
+  end
+end
+
+-- Teleport to player
+function TeleportToPlayer(playerName)
+  local target = GetPlayer(playerName)
+  if target then
+    LocalPlayer:SetPosition(target.Position)
+    print("Teleported to " .. playerName)
+  end
+end
+
+TeleportToWaypoint()
+`,
+        vehicle: `-- Vehicle Spawner
+print("Vehicle Spawner Loaded")
+
+-- Spawn vehicles
+local vehicles = {
+  "Adder",
+  "T20",
+  "Zentorno",
+  "EntityXXR",
+  "Torero"
+}
+
+for i, car in ipairs(vehicles) do
+  print("Available: " .. car)
+end
+
+-- Spawn selected vehicle
+SpawnVehicle("Adder")
+print("Vehicle spawned!")
+`,
+        troll: `-- Troll Script
+print("Troll Functions Loaded")
+
+-- Available troll options
+Troll_Options = {
+  "Explosion",
+  "Fire",
+  "Freeze",
+  "Ragdoll",
+  "Teleport",
+  "Kick"
+}
+
+-- Apply troll to target
+function TrollPlayer(target, option)
+  print("Applying " .. option .. " to " .. target.Name)
+  -- Implementation here
+end
+
+print("Ready to troll!")
+`,
+        farm: `-- Auto Farm Script
+print("Auto Farm Loaded")
+
+-- Auto collect
+AutoCollect = true
+AutoCollect_Range = 50
+
+-- Auto complete missions
+AutoMission = true
+
+-- Teleport to objectives
+AutoTeleport = true
+
+print("Auto farming enabled!")
+print("Collecting resources...")
+`
+      };
+      
+      if (scripts[type]) {
+        editor.value = scripts[type];
+        toast(`Loaded ${type} script`);
+        logToConsole(`Loaded ${type} script template`, 'info');
+      }
+      playClick();
+    }
+
+    function quickLua(code) {
+      executeLua();
+    }
 
     // Init
     loadConfig();
