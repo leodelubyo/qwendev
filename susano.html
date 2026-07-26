@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Susano Lite • Web Panel</title>
+  <style>
+    :root {
+      --bg: #080a0e;
+      --surface: #0f1218;
+      --surface2: #151a23;
+      --border: #1c2330;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --radius: 10px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      font-size: 14px;
+    }
+
+    .topbar {
+      height: 48px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 18px;
+      gap: 14px;
+      z-index: 50;
+    }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #86efac;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.2s;
+    }
+    .status::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--success);
+      animation: pulse 2s infinite;
+    }
+    .status.injecting { color: #fbbf24; }
+    .status.injecting::before { background: #fbbf24; box-shadow: 0 0 10px #fbbf24; }
+    .status.disconnected { color: #f87171; }
+    .status.disconnected::before { background: #f87171; box-shadow: 0 0 10px #f87171; animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .topbar-title {
+      flex: 1;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+      letter-spacing: 0.3px;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .app { display: flex; height: calc(100vh - 48px); }
+
+    .sidebar {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 12px 0;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 18px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13.5px;
+      transition: all 0.18s ease;
+      border-left: 3px solid transparent;
+      user-select: none;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active {
+      background: var(--surface2);
+      color: #60a5fa;
+      border-left-color: var(--accent);
+    }
+    .nav-item svg { width: 17px; height: 17px; opacity: 0.9; flex-shrink: 0; }
+
+    .main { flex: 1; display: flex; overflow: hidden; }
+    .content {
+      flex: 1;
+      padding: 22px 24px;
+      overflow-y: auto;
+    }
+    .section-title {
+      font-size: 19px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      color: #f1f5f9;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .card:hover { border-color: #2a3344; }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 12px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid #1a1f2a;
+    }
+    .row:last-child { border-bottom: none; }
+    .row-label { font-size: 13.5px; color: var(--text); }
+
+    .switch {
+      position: relative;
+      width: 40px;
+      height: 21px;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: #2a3142;
+      border-radius: 21px;
+      transition: 0.2s;
+    }
+    .slider:before {
+      content: '';
+      position: absolute;
+      height: 15px;
+      width: 15px;
+      left: 3px;
+      bottom: 3px;
+      background: #94a3b8;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    input:checked + .slider { background: var(--accent); }
+    input:checked + .slider:before {
+      transform: translateX(19px);
+      background: white;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0;
+    }
+    .range-row label {
+      width: 115px;
+      font-size: 13px;
+      color: #cbd5e1;
+      flex-shrink: 0;
+    }
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      background: #2a3142;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .range-value {
+      width: 44px;
+      text-align: right;
+      font-size: 13px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid #1a1f2a;
+    }
+    .color-row:last-child { border-bottom: none; }
+    input[type="color"] {
+      width: 32px;
+      height: 22px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+
+    .keybind {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-family: monospace;
+      min-width: 70px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+    }
+    .keybind:hover { background: #334155; }
+    .keybind.listening {
+      background: var(--accent);
+      color: white;
+      animation: pulse 1s infinite;
+    }
+
+    .fov-preview, .radar-preview {
+      display: flex;
+      justify-content: center;
+      padding: 12px 0 4px;
+    }
+    #fovCanvas, #radarCanvas {
+      background: #0b0e14;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .players {
+      width: 300px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.25s ease, opacity 0.25s ease;
+    }
+    .players.hidden {
+      width: 0;
+      opacity: 0;
+      overflow: hidden;
+      border: none;
+    }
+    .players-header {
+      padding: 13px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .search-box {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .search-box input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-box input:focus { border-color: var(--accent); }
+    .sort-row {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sort-btn {
+      flex: 1;
+      background: #1e293b;
+      border: none;
+      color: var(--text-muted);
+      padding: 5px 0;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sort-btn:hover { background: #334155; }
+    .sort-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+    .player-list-scroll { overflow-y: auto; flex: 1; }
+    .player {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #151a24;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .player:hover { background: var(--surface2); }
+    .player.selected {
+      background: #1a2332;
+      border-left: 3px solid var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.35);
+    }
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      font-weight: 600;
+      position: relative;
+    }
+    .team-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+    }
+    .player-info { flex: 1; min-width: 0; }
+    .player-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .player-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .hp-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+      min-width: 50px;
+    }
+    .hp-num {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .hp {
+      width: 44px;
+      height: 4px;
+      background: #1e293b;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .hp-fill { height: 100%; background: var(--success); transition: width 0.3s; }
+    .armor-fill { height: 100%; background: #3b82f6; transition: width 0.3s; }
+
+    .tabs {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      padding: 8px 15px;
+      font-size: 13px;
+      color: var(--text-dim);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      user-select: none;
+      transition: color 0.15s;
+    }
+    .tab:hover { color: var(--text-muted); }
+    .tab.active {
+      color: #60a5fa;
+      border-bottom-color: var(--accent);
+    }
+
+    .panel { display: none; animation: fadeIn 0.22s ease; }
+    .panel.active { display: block; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+      font-weight: 500;
+    }
+    .btn:hover { background: var(--accent-hover); box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
+    .btn:active { transform: scale(0.97); }
+    .btn-secondary { background: #1e293b; color: var(--text); }
+    .btn-secondary:hover { background: #334155; box-shadow: none; }
+    .btn-danger { background: #7f1d1d; color: #fecaca; }
+    .btn-danger:hover { background: #991b1b; box-shadow: 0 2px 8px rgba(239,68,68,0.25); }
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .theme-dots {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .theme-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s;
+    }
+    .theme-dot:hover { transform: scale(1.15); }
+    .theme-dot.active { border-color: white; }
+
+    .log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid #1a1f2a;
+    }
+    .log-time { color: var(--text-dim); margin-right: 8px; }
+
+    .profile-btns {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .profile-btn {
+      flex: 1;
+      padding: 8px;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 13px;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .profile-btn:hover { background: #334155; }
+    .profile-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .selected-player-box {
+      background: linear-gradient(135deg, #1a2332 0%, #151c28 100%);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 0 20px rgba(59, 130, 246, 0.08);
+    }
+    .selected-player-box .info { flex: 1; }
+    .selected-player-box .label {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .selected-player-box .name {
+      font-weight: 600;
+      color: #60a5fa;
+      font-size: 15px;
+    }
+    .selected-player-box .meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .selected-player-box .none {
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: 14px;
+    }
+
+    .quick-actions {
+      display: none;
+      gap: 6px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .quick-actions.show { display: flex; }
+
+    .recent-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .recent-chip {
+      background: #1e293b;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .recent-chip:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1e293b;
+      color: var(--text);
+      padding: 11px 22px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transition: all 0.25s ease;
+      pointer-events: none;
+      z-index: 100;
+      border: 1px solid #334155;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .badge {
+      font-size: 11px;
+      background: #1e293b;
+      color: var(--text-muted);
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .badge:hover { background: #334155; }
+    pre {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.65;
+      white-space: pre-wrap;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a3142; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a4558; }
+
+    @media (max-width: 900px) {
+      .players { display: none; }
+      .sidebar { width: 64px; }
+      .nav-item span { display: none; }
+      .nav-item { justify-content: center; padding: 14px 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="status" id="conn-status" onclick="cycleStatus()">Connected – Stream Proof</div>
+    <div class="topbar-title">Susano Lite • External Web Panel</div>
+    <div class="topbar-right">
+      <span id="ping">32 ms</span>
+      <span class="badge" onclick="toggleCompact()">Compact</span>
+      <span class="badge" onclick="toggleFullscreen()">Fullscreen</span>
+      <span class="badge">BETA</span>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="sidebar">
+      <div class="nav-item active" data-panel="combat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2 2"/></svg>
+        <span>Combat</span>
+      </div>
+      <div class="nav-item" data-panel="esp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>ESP & Visuals</span>
+      </div>
+      <div class="nav-item" data-panel="local">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Local Player</span>
+      </div>
+      <div class="nav-item" data-panel="players">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Player List</span>
+      </div>
+      <div class="nav-item" data-panel="vehicle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 17h14v-5H5z"/><path d="M5 12V7h14v5"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>
+        <span>Vehicle</span>
+      </div>
+      <div class="nav-item" data-panel="troll">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><path d="M12 14v8"/><path d="M8 18h8"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="9" r="1"/></svg>
+        <span>Troll</span>
+      </div>
+      <div class="nav-item" data-panel="server">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        <span>Server</span>
+      </div>
+      <div class="nav-item" data-panel="misc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Misc</span>
+      </div>
+      <div class="nav-item" data-panel="configs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Configs</span>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="content">
+
+        <!-- COMBAT -->
+        <div class="panel active" id="panel-combat">
+          <div class="section-title">Combat</div>
+          <div class="tabs" id="combat-tabs">
+            <div class="tab active" data-sub="general">General</div>
+            <div class="tab" data-sub="silent">Silent Aim</div>
+            <div class="tab" data-sub="trigger">Triggerbot</div>
+          </div>
+
+          <div id="sub-general">
+            <div class="card">
+              <div class="card-title">Aim Assist</div>
+              <div class="row"><span class="row-label">Enable Aim Assist</span><label class="switch"><input type="checkbox" data-key="aa_enable" checked><span class="slider"></span></label></div>
+              <div class="row"><span class="row-label">Draw FOV Circle</span><label class="switch"><input type="checkbox" data-key="draw_fov" checked onchange="drawFOV()"><span class="slider"></span></label></div>
+              <div class="row"><span class="row-label">Visibility Check</span><label class="switch"><input type="checkbox" data-key="vis_check" checked><span class="slider"></span></label></div>
+              <div class="row"><span class="row-label">Target NPCs</span><label class="switch"><input type="checkbox" data-key="target_npc"><span class="slider"></span></label></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Settings</div>
+              <div class="range-row"><label>FOV</label><input type="range" min="1" max="180" value="45" data-key="fov" oninput="updateRange(this); drawFOV()"><span class="range-value" data-val="fov">45</span></div>
+              <div class="range-row"><label>Smoothness</label><input type="range" min="1" max="20" value="8" data-key="smooth" oninput="updateRange(this)"><span class="range-value" data-val="smooth">8</span></div>
+              <div class="range-row"><label>Hit Chance</label><input type="range" min="1" max="100" value="70" data-key="hitchance" oninput="updateRange(this, '%')"><span class="range-value" data-val="hitchance">70%</span></div>
+            </div>
+            <div class="card">
+              <div class="card-title">FOV Preview</div>
+              <div class="fov-preview">
+                <canvas id="fovCanvas" width="220" height="140"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="sub-silent" style="display:none">
+            <div class="card">
+              <div class="card-title">Silent Aim</div>
+              <div class="row"><span class="row-label">Enable Silent Aim</span><label class="switch"><input type="checkbox" data-key="silent_aim"><span class="slider"></span></label></div>
+              <div class="row"><span class="row-label">Magic Bullet</span><label class="switch"><input type="checkbox" data-key="magic_bullet"><span class="slider"></span></label></div>
+              <div class="range-row"><label>Silent FOV</label><input type="range" min="1" max="120" value="30" data-key="silent_fov" oninput="updateRange(this)"><span class="range-value" data-val="silent_fov">30</span></div>
+            </div>
+          </div>
+
+          <div id="sub-trigger" style="display:none">
+            <div class="card">
+              <div class="card-title">Triggerbot</div>
+              <div class="row"><span class="row-label">Enable Triggerbot</span><label class="switch"><input type="checkbox" data-key="triggerbot"><span class="slider"></span></label></div>
+              <div class="row"><span class="row-label">Only on Visible</span><label class="switch"><input type="checkbox" data-key="tb_visible" checked><span class="slider"></span></label></div>
+              <div class="range-row"><label>Delay (ms)</label><input type="range" min="0" max="200" value="40" data-key="tb_delay" oninput="updateRange(this)"><span class="range-value" data-val="tb_delay">40</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ESP -->
+        <div class="panel" id="panel-esp">
+          <div class="section-title">ESP & Visuals</div>
+          <div class="card">
+            <div class="card-title">Player ESP</div>
+            <div class="row"><span class="row-label">Box ESP</span><label class="switch"><input type="checkbox" data-key="box_esp" checked><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Skeleton</span><label class="switch"><input type="checkbox" data-key="skeleton" checked><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Name</span><label class="switch"><input type="checkbox" data-key="name_esp" checked><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Distance</span><label class="switch"><input type="checkbox" data-key="dist_esp" checked><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Health Bar</span><label class="switch"><input type="checkbox" data-key="hp_bar" checked><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Armor Bar</span><label class="switch"><input type="checkbox" data-key="armor_bar"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Weapon</span><label class="switch"><input type="checkbox" data-key="weapon_esp"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Snaplines</span><label class="switch"><input type="checkbox" data-key="snaplines"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Visible Only</span><label class="switch"><input type="checkbox" data-key="vis_only" checked><span class="slider"></span></label></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">ESP Colors</div>
+            <div class="color-row"><span class="row-label">Box Color</span><input type="color" data-key="color_box" value="#3b82f6"></div>
+            <div class="color-row"><span class="row-label">Skeleton Color</span><input type="color" data-key="color_skel" value="#22c55e"></div>
+            <div class="color-row"><span class="row-label">Name Color</span><input type="color" data-key="color_name" value="#ffffff"></div>
+            <div class="color-row"><span class="row-label">Snapline Color</span><input type="color" data-key="color_snap" value="#f59e0b"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Mini Radar</div>
+            <div class="radar-preview">
+              <canvas id="radarCanvas" width="200" height="200"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Distance</div>
+            <div class="range-row"><label>Max Distance</label><input type="range" min="50" max="1000" value="350" data-key="esp_dist" oninput="updateRange(this); drawRadar()"><span class="range-value" data-val="esp_dist">350</span></div>
+          </div>
+        </div>
+
+        <!-- LOCAL -->
+        <div class="panel" id="panel-local">
+          <div class="section-title">Local Player</div>
+          <div class="card">
+            <div class="card-title">Protection</div>
+            <div class="row"><span class="row-label">God Mode</span><label class="switch"><input type="checkbox" data-key="godmode"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Semi God</span><label class="switch"><input type="checkbox" data-key="semigod"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Anti Headshot</span><label class="switch"><input type="checkbox" data-key="antihs"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">No Ragdoll</span><label class="switch"><input type="checkbox" data-key="noragdoll" checked><span class="slider"></span></label></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Movement</div>
+            <div class="row"><span class="row-label">No Clip</span><label class="switch"><input type="checkbox" data-key="noclip"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Super Jump</span><label class="switch"><input type="checkbox" data-key="superjump"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Infinite Stamina</span><label class="switch"><input type="checkbox" data-key="infstamina" checked><span class="slider"></span></label></div>
+            <div class="range-row"><label>Run Speed</label><input type="range" min="1" max="5" step="0.1" value="1.2" data-key="runspeed" oninput="updateRange(this)"><span class="range-value" data-val="runspeed">1.2</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Quick Actions</div>
+            <div class="btn-row">
+              <button class="btn" onclick="action('Healed +100 HP')">Heal</button>
+              <button class="btn" onclick="action('Armor +100')">Armor</button>
+              <button class="btn btn-secondary" onclick="action('Revived')">Revive</button>
+              <button class="btn btn-secondary" onclick="action('Teleported to waypoint')">TP Waypoint</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PLAYERS -->
+        <div class="panel" id="panel-players">
+          <div class="section-title">Player List</div>
+          <div class="card">
+            <div class="card-title">Actions on Selected Player</div>
+            <div class="btn-row">
+              <button class="btn" onclick="playerAction('Spectating')">Spectate</button>
+              <button class="btn" onclick="playerAction('Teleported to')">Teleport</button>
+              <button class="btn btn-secondary" onclick="playerAction('Copied ID of')">Copy ID</button>
+              <button class="btn btn-danger" onclick="playerAction('Kicked')">Kick (demo)</button>
+            </div>
+          </div>
+          <p style="color:var(--text-dim);font-size:13px;margin-top:8px">
+            Click a player to select • Double-click to select + open Troll tab
+          </p>
+        </div>
+
+        <!-- VEHICLE -->
+        <div class="panel" id="panel-vehicle">
+          <div class="section-title">Vehicle Manager</div>
+          <div class="card">
+            <div class="card-title">Current Vehicle</div>
+            <div class="row"><span class="row-label">God Mode</span><label class="switch"><input type="checkbox" data-key="veh_god"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">No Collision</span><label class="switch"><input type="checkbox" data-key="veh_nocoll"><span class="slider"></span></label></div>
+            <div class="range-row"><label>Speed Multi</label><input type="range" min="1" max="5" step="0.1" value="1.5" data-key="veh_speed" oninput="updateRange(this)"><span class="range-value" data-val="veh_speed">1.5</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Actions</div>
+            <div class="btn-row">
+              <button class="btn" onclick="action('Vehicle repaired')">Repair</button>
+              <button class="btn" onclick="action('Vehicle flipped')">Flip</button>
+              <button class="btn btn-secondary" onclick="action('Spawned Adder')">Spawn Adder</button>
+              <button class="btn btn-secondary" onclick="action('Vehicle deleted')">Delete</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TROLL -->
+        <div class="panel" id="panel-troll">
+          <div class="section-title">Troll</div>
+
+          <div class="selected-player-box" id="selected-box">
+            <div class="info">
+              <div class="label">Current Target</div>
+              <div id="selected-name" class="none">None selected – click a player on the right</div>
+              <div id="selected-meta" class="meta" style="display:none"></div>
+            </div>
+            <button class="btn btn-secondary" onclick="clearSelection()" style="padding:6px 12px;font-size:12px">Clear</button>
+          </div>
+
+          <div class="quick-actions" id="quick-actions">
+            <button class="btn" onclick="playerAction('Spectating')">Spectate</button>
+            <button class="btn" onclick="playerAction('Teleported to')">Teleport</button>
+            <button class="btn btn-danger" onclick="trollAction('Exploded')">Quick Explode</button>
+            <button class="btn btn-danger" onclick="trollAction('Launched')">Quick Launch</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Recently Targeted</div>
+            <div class="recent-list" id="recent-list">
+              <span style="color:var(--text-dim);font-size:13px">No recent targets yet</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Player Trolls</div>
+            <div class="btn-row">
+              <button class="btn btn-danger" onclick="trollAction('Exploded')">Explode</button>
+              <button class="btn btn-danger" onclick="trollAction('Launched')">Launch</button>
+              <button class="btn btn-danger" onclick="trollAction('Caged')">Cage</button>
+              <button class="btn btn-danger" onclick="trollAction('Froze')">Freeze</button>
+              <button class="btn btn-secondary" onclick="trollAction('Forced animation on')">Force Anim</button>
+              <button class="btn btn-secondary" onclick="trollAction('Ragdolled')">Ragdoll</button>
+              <button class="btn btn-secondary" onclick="trollAction('Set on fire')">Ignite</button>
+              <button class="btn btn-secondary" onclick="trollAction('Blinded')">Blind</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Vehicle Trolls</div>
+            <div class="btn-row">
+              <button class="btn btn-danger" onclick="trollAction('Exploded vehicle of')">Explode Veh</button>
+              <button class="btn btn-danger" onclick="trollAction('Launched vehicle of')">Launch Veh</button>
+              <button class="btn btn-secondary" onclick="trollAction('Flipped vehicle of')">Flip Veh</button>
+              <button class="btn btn-secondary" onclick="trollAction('Deleted vehicle of')">Delete Veh</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Spam / Annoy</div>
+            <div class="btn-row">
+              <button class="btn btn-danger" onclick="trollAction('Spammed notifications on')">Spam Notify</button>
+              <button class="btn btn-danger" onclick="trollAction('Spammed chat at')">Spam Chat</button>
+              <button class="btn btn-secondary" onclick="trollAction('Money rain on')">Money Rain</button>
+              <button class="btn btn-secondary" onclick="trollAction('Prop spam on')">Prop Spam</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Continuous Effects</div>
+            <div class="row">
+              <span class="row-label">Auto Explode on Shoot</span>
+              <label class="switch"><input type="checkbox" data-key="troll_autoexplode"><span class="slider"></span></label>
+            </div>
+            <div class="row">
+              <span class="row-label">Force Ragdoll Nearby</span>
+              <label class="switch"><input type="checkbox" data-key="troll_ragdoll"><span class="slider"></span></label>
+            </div>
+            <div class="row">
+              <span class="row-label">Chaos Mode</span>
+              <label class="switch"><input type="checkbox" data-key="troll_chaos"><span class="slider"></span></label>
+            </div>
+            <div class="row">
+              <span class="row-label">Fake Lag All</span>
+              <label class="switch"><input type="checkbox" data-key="troll_fakelag"><span class="slider"></span></label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Danger Zone</div>
+            <div class="btn-row">
+              <button class="btn btn-danger" onclick="trollAction('Server-wide explosion wave')">Explosion Wave</button>
+              <button class="btn btn-danger" onclick="trollAction('Mass vehicle spawn')">Mass Spawn</button>
+              <button class="btn btn-danger" onclick="trollAction('Everyone launched into sky')">Sky Launch</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SERVER -->
+        <div class="panel" id="panel-server">
+          <div class="section-title">Server</div>
+          <div class="card">
+            <div class="card-title">Info</div>
+            <div class="row"><span class="row-label">Server</span><span style="color:var(--text-muted)">Los Santos PvP #3</span></div>
+            <div class="row"><span class="row-label">Players</span><span style="color:var(--text-muted)">48 / 64</span></div>
+            <div class="row"><span class="row-label">Ping</span><span style="color:var(--text-muted)" id="server-ping">32 ms</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Options</div>
+            <div class="row"><span class="row-label">Anti AFK</span><label class="switch"><input type="checkbox" data-key="antiafk" checked><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Force Desync</span><label class="switch"><input type="checkbox" data-key="desync"><span class="slider"></span></label></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Activity Log</div>
+            <div class="log" id="activity-log"></div>
+          </div>
+        </div>
+
+        <!-- MISC -->
+        <div class="panel" id="panel-misc">
+          <div class="section-title">Miscellaneous</div>
+          <div class="card">
+            <div class="card-title">Visuals</div>
+            <div class="row"><span class="row-label">Night Vision</span><label class="switch"><input type="checkbox" data-key="nv"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Thermal Vision</span><label class="switch"><input type="checkbox" data-key="thermal"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">No Fog</span><label class="switch"><input type="checkbox" data-key="nofog" checked><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">UI Sounds</span><label class="switch"><input type="checkbox" data-key="ui_sounds" checked><span class="slider"></span></label></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Keybinds <small style="color:var(--text-dim);font-weight:400">(click to change)</small></div>
+            <div class="row"><span class="row-label">Open Menu</span><span class="keybind" data-bind="menu">RSHIFT</span></div>
+            <div class="row"><span class="row-label">No Clip</span><span class="keybind" data-bind="noclip">F3</span></div>
+            <div class="row"><span class="row-label">Heal</span><span class="keybind" data-bind="heal">F4</span></div>
+            <div class="row"><span class="row-label">God Mode</span><span class="keybind" data-bind="god">F5</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Theme Accent</div>
+            <div class="theme-dots">
+              <div class="theme-dot active" style="background:#3b82f6" onclick="setTheme('#3b82f6', this)"></div>
+              <div class="theme-dot" style="background:#a855f7" onclick="setTheme('#a855f7', this)"></div>
+              <div class="theme-dot" style="background:#22c55e" onclick="setTheme('#22c55e', this)"></div>
+              <div class="theme-dot" style="background:#ef4444" onclick="setTheme('#ef4444', this)"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Other</div>
+            <div class="row"><span class="row-label">Invisible</span><label class="switch"><input type="checkbox" data-key="invis"><span class="slider"></span></label></div>
+            <div class="row"><span class="row-label">Never Wanted</span><label class="switch"><input type="checkbox" data-key="neverwanted" checked><span class="slider"></span></label></div>
+            <div class="btn-row" style="margin-top:12px">
+              <button class="btn btn-secondary" onclick="action('Wanted level cleared')">Clear Wanted</button>
+              <button class="btn btn-danger" onclick="action('Suicide')">Suicide</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONFIGS -->
+        <div class="panel" id="panel-configs">
+          <div class="section-title">Configs</div>
+          
+          <div class="card">
+            <div class="card-title">Profiles</div>
+            <div class="profile-btns">
+              <div class="profile-btn active" data-profile="legit" onclick="switchProfile('legit', this)">Legit</div>
+              <div class="profile-btn" data-profile="rage" onclick="switchProfile('rage', this)">Rage</div>
+              <div class="profile-btn" data-profile="custom" onclick="switchProfile('custom', this)">Custom</div>
+            </div>
+            <div class="btn-row">
+              <button class="btn" onclick="saveCurrentProfile()">Save to Profile</button>
+              <button class="btn btn-secondary" onclick="loadCurrentProfile()">Load Profile</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Quick Presets</div>
+            <div class="btn-row">
+              <button class="btn" onclick="loadPreset('legit')">Apply Legit</button>
+              <button class="btn" onclick="loadPreset('rage')">Apply Rage</button>
+              <button class="btn btn-secondary" onclick="saveConfig()">Save Current</button>
+              <button class="btn btn-secondary" onclick="resetConfig()">Reset All</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Export / Import</div>
+            <div class="btn-row">
+              <button class="btn btn-secondary" onclick="exportConfig()">Export JSON</button>
+              <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">Import JSON</button>
+              <input type="file" id="import-file" accept=".json" style="display:none" onchange="importConfig(event)">
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Live Summary</div>
+            <pre id="config-summary"></pre>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="players" id="players-panel">
+        <div class="players-header">
+          Live Players
+          <span id="player-count" class="badge">0</span>
+        </div>
+        <div class="search-box">
+          <input type="text" id="player-search" placeholder="Search players..." oninput="filterPlayers()">
+        </div>
+        <div class="sort-row">
+          <button class="sort-btn active" data-sort="dist" onclick="setSort('dist', this)">Distance</button>
+          <button class="sort-btn" data-sort="name" onclick="setSort('name', this)">Name</button>
+          <button class="sort-btn" data-sort="hp" onclick="setSort('hp', this)">Health</button>
+        </div>
+        <div class="player-list-scroll" id="player-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // Safe storage
+    const memoryStore = {};
+    let canUseLocalStorage = false;
+    try {
+      const t = '__t';
+      localStorage.setItem(t, t);
+      localStorage.removeItem(t);
+      canUseLocalStorage = true;
+    } catch(e) { canUseLocalStorage = false; }
+
+    function storageGet(k) {
+      if (canUseLocalStorage) { try { return localStorage.getItem(k); } catch(e) {} }
+      return memoryStore[k] || null;
+    }
+    function storageSet(k, v) {
+      if (canUseLocalStorage) { try { localStorage.setItem(k, v); return; } catch(e) {} }
+      memoryStore[k] = v;
+    }
+    function storageRemove(k) {
+      if (canUseLocalStorage) { try { localStorage.removeItem(k); return; } catch(e) {} }
+      delete memoryStore[k];
+    }
+
+    // Sound
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playClick() {
+      const enabled = document.querySelector('[data-key="ui_sounds"]');
+      if (enabled && !enabled.checked) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.frequency.value = 800;
+      gain.gain.value = 0.05;
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+      osc.stop(audioCtx.currentTime + 0.08);
+    }
+
+    const players = [
+      { id: 1, name: "JohnDoe_42", dist: 142, hp: 85, armor: 40, weapon: "AK-47", team: "red", visible: true },
+      { id: 2, name: "MaxPower", dist: 67, hp: 40, armor: 0, weapon: "Pistol", team: "blue", visible: true },
+      { id: 3, name: "ShadowKing", dist: 203, hp: 100, armor: 100, weapon: "Sniper", team: "red", visible: false },
+      { id: 4, name: "LunaPvP", dist: 89, hp: 22, armor: 15, weapon: "SMG", team: "blue", visible: true },
+      { id: 5, name: "RazorX", dist: 311, hp: 95, armor: 60, weapon: "Rifle", team: "red", visible: false },
+      { id: 6, name: "GhostRider", dist: 45, hp: 70, armor: 30, weapon: "Shotgun", team: "blue", visible: true },
+      { id: 7, name: "Ninja_99", dist: 178, hp: 55, armor: 0, weapon: "Knife", team: "red", visible: true },
+      { id: 8, name: "VenomGT", dist: 256, hp: 88, armor: 80, weapon: "Carbine", team: "blue", visible: false },
+    ];
+
+    let selectedPlayer = null;
+    let filteredPlayers = [...players];
+    let currentSort = 'dist';
+    let currentProfile = 'legit';
+    const STORAGE_KEY = 'susano_lite_v11';
+    let listeningBind = null;
+    let compact = false;
+    const activityLog = [];
+    let recentTargets = [];
+
+    function addLog(msg) {
+      const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+      activityLog.unshift({ time, msg });
+      if (activityLog.length > 40) activityLog.pop();
+      renderLog();
+    }
+
+    function renderLog() {
+      const el = document.getElementById('activity-log');
+      if (!el) return;
+      el.innerHTML = activityLog.map(e => 
+        `<div class="log-entry"><span class="log-time">${e.time}</span>${e.msg}</div>`
+      ).join('');
+    }
+
+    function addRecent(name) {
+      recentTargets = recentTargets.filter(n => n !== name);
+      recentTargets.unshift(name);
+      if (recentTargets.length > 5) recentTargets.pop();
+      renderRecent();
+    }
+
+    function renderRecent() {
+      const el = document.getElementById('recent-list');
+      if (!el) return;
+      if (recentTargets.length === 0) {
+        el.innerHTML = '<span style="color:var(--text-dim);font-size:13px">No recent targets yet</span>';
+        return;
+      }
+      el.innerHTML = recentTargets.map(name => 
+        `<span class="recent-chip" onclick="selectByName('${name}')">${name}</span>`
+      ).join('');
+    }
+
+    function selectByName(name) {
+      const p = players.find(x => x.name === name);
+      if (!p) return;
+      selectedPlayer = p.id;
+      renderPlayers();
+      updateSelectedDisplay();
+      toast(`Selected ${name}`);
+      playClick();
+    }
+
+    function updateSelectedDisplay() {
+      const nameEl = document.getElementById('selected-name');
+      const metaEl = document.getElementById('selected-meta');
+      const quickEl = document.getElementById('quick-actions');
+      
+      if (!nameEl) return;
+
+      if (selectedPlayer) {
+        const p = players.find(x => x.id === selectedPlayer);
+        if (p) {
+          nameEl.textContent = p.name;
+          nameEl.className = 'name';
+          metaEl.style.display = 'block';
+          metaEl.textContent = `${p.dist}m • ${p.weapon} • HP ${p.hp} • Armor ${p.armor}`;
+          if (quickEl) quickEl.classList.add('show');
+        }
+      } else {
+        nameEl.textContent = 'None selected – click a player on the right';
+        nameEl.className = 'none';
+        if (metaEl) metaEl.style.display = 'none';
+        if (quickEl) quickEl.classList.remove('show');
+      }
+    }
+
+    function clearSelection() {
+      selectedPlayer = null;
+      renderPlayers();
+      updateSelectedDisplay();
+      toast('Selection cleared');
+      playClick();
+    }
+
+    function goToTroll() {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      document.querySelector('[data-panel="troll"]').classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-troll').classList.add('active');
+      updateSelectedDisplay();
+      renderRecent();
+    }
+
+    // Status cycle
+    const statuses = [
+      { text: 'Connected – Stream Proof', cls: '' },
+      { text: 'Injecting...', cls: 'injecting' },
+      { text: 'Disconnected', cls: 'disconnected' }
+    ];
+    let statusIndex = 0;
+    function cycleStatus() {
+      statusIndex = (statusIndex + 1) % statuses.length;
+      const s = document.getElementById('conn-status');
+      s.textContent = statuses[statusIndex].text;
+      s.className = 'status ' + statuses[statusIndex].cls;
+      toast(statuses[statusIndex].text);
+      addLog(statuses[statusIndex].text);
+      playClick();
+    }
+
+    function toggleCompact() {
+      compact = !compact;
+      document.getElementById('players-panel').classList.toggle('hidden', compact);
+      playClick();
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+      playClick();
+    }
+
+    function setTheme(color, el) {
+      document.documentElement.style.setProperty('--accent', color);
+      document.documentElement.style.setProperty('--accent-hover', color);
+      document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active'));
+      el.classList.add('active');
+      drawFOV();
+      drawRadar();
+      toast('Theme updated');
+      playClick();
+    }
+
+    function drawFOV() {
+      const canvas = document.getElementById('fovCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      const fov = parseInt(document.querySelector('[data-key="fov"]').value) || 45;
+      const draw = document.querySelector('[data-key="draw_fov"]').checked;
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#0b0e14';
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(w/2 - 12, h/2); ctx.lineTo(w/2 + 12, h/2);
+      ctx.moveTo(w/2, h/2 - 12); ctx.lineTo(w/2, h/2 + 12);
+      ctx.stroke();
+
+      if (draw) {
+        const radius = (fov / 180) * (Math.min(w, h) * 0.42);
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#3b82f6';
+        ctx.beginPath();
+        ctx.arc(w/2, h/2, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = accent;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = accent + '18';
+        ctx.fill();
+      }
+    }
+
+    function drawRadar() {
+      const canvas = document.getElementById('radarCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const center = size / 2;
+      const maxDist = parseInt(document.querySelector('[data-key="esp_dist"]').value) || 350;
+
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = '#0b0e14';
+      ctx.fillRect(0, 0, size, size);
+
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      ctx.fillStyle = '#475569';
+      ctx.font = '10px sans-serif';
+      [0.33, 0.66, 1].forEach((r) => {
+        ctx.beginPath();
+        ctx.arc(center, center, center * r, 0, Math.PI * 2);
+        ctx.stroke();
+        const dist = Math.round(maxDist * r);
+        ctx.fillText(dist + 'm', center + 4, center - center * r + 12);
+      });
+
+      ctx.beginPath();
+      ctx.moveTo(center, 8); ctx.lineTo(center, size - 8);
+      ctx.moveTo(8, center); ctx.lineTo(size - 8, center);
+      ctx.stroke();
+
+      ctx.fillStyle = '#60a5fa';
+      ctx.beginPath();
+      ctx.arc(center, center, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      players.forEach(p => {
+        const scale = Math.min(p.dist / maxDist, 1);
+        const angle = (p.id * 47) % 360 * Math.PI / 180;
+        const x = center + Math.cos(angle) * (center * 0.88 * scale);
+        const y = center + Math.sin(angle) * (center * 0.88 * scale);
+
+        ctx.fillStyle = p.team === 'red' ? '#ef4444' : '#3b82f6';
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // Fake ping fluctuation
+    setInterval(() => {
+      const base = 28 + Math.floor(Math.random() * 18);
+      document.getElementById('ping').textContent = base + ' ms';
+      const sp = document.getElementById('server-ping');
+      if (sp) sp.textContent = base + ' ms';
+    }, 2500);
+
+    // Keybinds
+    document.querySelectorAll('.keybind').forEach(el => {
+      el.addEventListener('click', () => {
+        if (listeningBind) listeningBind.classList.remove('listening');
+        listeningBind = el;
+        el.classList.add('listening');
+        el.textContent = '...';
+        toast('Press any key...');
+        playClick();
+      });
+    });
+
+    window.addEventListener('keydown', e => {
+      if (!listeningBind) return;
+      e.preventDefault();
+      let key = e.key.toUpperCase();
+      if (key === ' ') key = 'SPACE';
+      if (key === 'CONTROL') key = 'CTRL';
+      listeningBind.textContent = key;
+      listeningBind.classList.remove('listening');
+      listeningBind = null;
+      toast('Keybind set to ' + key);
+      addLog('Keybind changed → ' + key);
+      playClick();
+    });
+
+    function getAllSettings() {
+      const data = {};
+      document.querySelectorAll('[data-key]').forEach(el => {
+        if (el.type === 'checkbox') data[el.dataset.key] = el.checked;
+        else data[el.dataset.key] = el.value;
+      });
+      document.querySelectorAll('.keybind').forEach(el => {
+        data['bind_' + el.dataset.bind] = el.textContent;
+      });
+      return data;
+    }
+
+    function applySettings(data) {
+      document.querySelectorAll('[data-key]').forEach(el => {
+        if (data[el.dataset.key] === undefined) return;
+        if (el.type === 'checkbox') el.checked = data[el.dataset.key];
+        else if (el.type === 'color') el.value = data[el.dataset.key];
+        else {
+          el.value = data[el.dataset.key];
+          updateRange(el, el.dataset.key === 'hitchance' ? '%' : '');
+        }
+      });
+      document.querySelectorAll('.keybind').forEach(el => {
+        const k = 'bind_' + el.dataset.bind;
+        if (data[k]) el.textContent = data[k];
+      });
+      drawFOV();
+      drawRadar();
+    }
+
+    function saveConfig() {
+      storageSet(STORAGE_KEY, JSON.stringify(getAllSettings()));
+      toast(canUseLocalStorage ? 'Config saved' : 'Config saved (session only)');
+      addLog('Config saved');
+      updateSummary();
+      playClick();
+    }
+
+    function loadConfig() {
+      const raw = storageGet(STORAGE_KEY);
+      if (!raw) return;
+      try { applySettings(JSON.parse(raw)); } catch(e) {}
+    }
+
+    function resetConfig() {
+      storageRemove(STORAGE_KEY);
+      location.reload();
+    }
+
+    function exportConfig() {
+      const blob = new Blob([JSON.stringify(getAllSettings(), null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'susano-config.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Config exported');
+      addLog('Config exported');
+      playClick();
+    }
+
+    function importConfig(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          applySettings(JSON.parse(ev.target.result));
+          saveConfig();
+          toast('Config imported');
+          addLog('Config imported');
+        } catch(err) {
+          toast('Invalid config file');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Profiles
+    function switchProfile(name, el) {
+      currentProfile = name;
+      document.querySelectorAll('.profile-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      playClick();
+    }
+
+    function saveCurrentProfile() {
+      const key = 'profile_' + currentProfile;
+      storageSet(key, JSON.stringify(getAllSettings()));
+      toast(`Saved to ${currentProfile} profile`);
+      addLog(`Saved profile: ${currentProfile}`);
+      playClick();
+    }
+
+    function loadCurrentProfile() {
+      const key = 'profile_' + currentProfile;
+      const raw = storageGet(key);
+      if (!raw) {
+        toast('No saved data for this profile');
+        return;
+      }
+      try {
+        applySettings(JSON.parse(raw));
+        toast(`Loaded ${currentProfile} profile`);
+        addLog(`Loaded profile: ${currentProfile}`);
+        updateSummary();
+      } catch(e) {
+        toast('Failed to load profile');
+      }
+      playClick();
+    }
+
+    function setSort(type, btn) {
+      currentSort = type;
+      document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterPlayers();
+      playClick();
+    }
+
+    function renderPlayers() {
+      const list = document.getElementById('player-list');
+      list.innerHTML = '';
+      filteredPlayers.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'player' + (selectedPlayer === p.id ? ' selected' : '');
+        div.innerHTML = `
+          <div class="avatar">
+            ${p.name.slice(0,2).toUpperCase()}
+            <div class="team-dot" style="background:${p.team === 'red' ? '#ef4444' : '#3b82f6'}"></div>
+          </div>
+          <div class="player-info">
+            <div class="player-name">${p.name}</div>
+            <div class="player-meta">${p.dist}m • ${p.weapon} ${p.visible ? '• Visible' : ''}</div>
+          </div>
+          <div class="hp-wrap">
+            <div class="hp-num">${p.hp} / ${p.armor}</div>
+            <div class="hp"><div class="hp-fill" style="width:${p.hp}%"></div></div>
+            <div class="hp" style="margin-top:2px"><div class="armor-fill" style="width:${p.armor}%"></div></div>
+          </div>
+        `;
+        
+        div.onclick = () => {
+          selectedPlayer = p.id;
+          renderPlayers();
+          updateSelectedDisplay();
+          toast(`Selected ${p.name}`);
+          addLog(`Selected player: ${p.name}`);
+          playClick();
+        };
+
+        div.ondblclick = () => {
+          selectedPlayer = p.id;
+          renderPlayers();
+          updateSelectedDisplay();
+          goToTroll();
+          toast(`Selected ${p.name} → Troll tab`);
+          addLog(`Selected + opened Troll: ${p.name}`);
+          playClick();
+        };
+
+        list.appendChild(div);
+      });
+      document.getElementById('player-count').textContent = filteredPlayers.length;
+      updateSelectedDisplay();
+    }
+
+    function filterPlayers() {
+      const q = document.getElementById('player-search').value.toLowerCase();
+      filteredPlayers = players.filter(p => p.name.toLowerCase().includes(q));
+
+      if (currentSort === 'dist') filteredPlayers.sort((a,b) => a.dist - b.dist);
+      else if (currentSort === 'name') filteredPlayers.sort((a,b) => a.name.localeCompare(b.name));
+      else if (currentSort === 'hp') filteredPlayers.sort((a,b) => b.hp - a.hp);
+
+      renderPlayers();
+      drawRadar();
+    }
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        const id = item.dataset.panel;
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + id).classList.add('active');
+        if (id === 'combat') setTimeout(drawFOV, 50);
+        if (id === 'esp') setTimeout(drawRadar, 50);
+        if (id === 'server') renderLog();
+        if (id === 'troll') {
+          updateSelectedDisplay();
+          renderRecent();
+        }
+        playClick();
+      });
+    });
+
+    document.querySelectorAll('#combat-tabs .tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('#combat-tabs .tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ['general','silent','trigger'].forEach(s => {
+          document.getElementById('sub-' + s).style.display = (tab.dataset.sub === s) ? 'block' : 'none';
+        });
+        if (tab.dataset.sub === 'general') setTimeout(drawFOV, 30);
+        playClick();
+      });
+    });
+
+    function updateRange(el, suffix = '') {
+      const target = document.querySelector(`[data-val="${el.dataset.key}"]`);
+      if (target) target.textContent = el.value + suffix;
+      updateSummary();
+    }
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+
+    function action(msg) {
+      toast(msg);
+      addLog(msg);
+      playClick();
+    }
+
+    function trollAction(msg) {
+      const isMass = msg.includes('wave') || msg.includes('Mass') || msg.includes('Sky') || msg.includes('Everyone');
+      
+      if (!selectedPlayer && !isMass) {
+        toast('Select a player first (click name on the right)');
+        return;
+      }
+
+      let fullMsg;
+      if (isMass) {
+        fullMsg = msg;
+      } else {
+        const p = players.find(x => x.id === selectedPlayer);
+        fullMsg = `${msg} ${p.name}`;
+        addRecent(p.name);
+      }
+
+      toast(fullMsg);
+      addLog(fullMsg);
+      playClick();
+    }
+
+    function playerAction(action) {
+      if (!selectedPlayer) return toast('Select a player first');
+      const p = players.find(x => x.id === selectedPlayer);
+      toast(`${action} ${p.name}`);
+      addLog(`${action} ${p.name}`);
+      playClick();
+    }
+
+    function loadPreset(type) {
+      if (type === 'legit') {
+        set('aa_enable', true); set('silent_aim', false); set('triggerbot', false);
+        set('fov', 35); set('smooth', 12); set('hitchance', 55);
+      } else {
+        set('aa_enable', true); set('silent_aim', true); set('triggerbot', true);
+        set('fov', 90); set('smooth', 3); set('hitchance', 95);
+      }
+      drawFOV();
+      toast(type === 'legit' ? 'Legit preset loaded' : 'Rage preset loaded');
+      addLog(`Preset loaded: ${type}`);
+      updateSummary();
+      playClick();
+    }
+
+    function set(key, value) {
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = value;
+      else {
+        el.value = value;
+        updateRange(el, key === 'hitchance' ? '%' : '');
+      }
+    }
+
+    function updateSummary() {
+      const s = document.getElementById('config-summary');
+      if (!s) return;
+      const get = k => {
+        const el = document.querySelector(`[data-key="${k}"]`);
+        if (!el) return '-';
+        return el.type === 'checkbox' ? (el.checked ? 'ON' : 'OFF') : el.value;
+      };
+      s.textContent = `Aim Assist     ${get('aa_enable')}
+Silent Aim     ${get('silent_aim')}
+Triggerbot     ${get('triggerbot')}
+FOV            ${get('fov')}
+Smoothness     ${get('smooth')}
+Hit Chance     ${get('hitchance')}%
+Box ESP        ${get('box_esp')}
+Skeleton       ${get('skeleton')}
+God Mode       ${get('godmode')}
+No Clip        ${get('noclip')}
+Veh God        ${get('veh_god')}`;
+    }
+
+    document.querySelectorAll('[data-key]').forEach(el => {
+      el.addEventListener('change', () => {
+        updateSummary();
+        storageSet(STORAGE_KEY, JSON.stringify(getAllSettings()));
+        playClick();
+      });
+    });
+
+    // Init
+    loadConfig();
+    filterPlayers();
+    updateSummary();
+    addLog('Panel loaded');
+    setTimeout(() => { drawFOV(); drawRadar(); }, 100);
+  </script>
+</body>
+</html>
